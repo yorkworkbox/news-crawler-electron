@@ -1,0 +1,13 @@
+# 忽略 Node.js 的依賴項
+node_modules/
+
+# 忽略 Electron Builder 的打包輸出
+dist/
+
+# 忽略 過往紀錄
+back beta/
+back v1/
+
+# 忽略作業系統產生的檔案
+.DS_Store
+Thumbs.db

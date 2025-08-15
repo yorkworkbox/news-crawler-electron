@@ -1,0 +1,40 @@
+{
+  "name": "news-crawler",
+  "version": "1.0.0",
+  "description": "新聞連結搜尋爬蟲",
+  "author": "York",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.newscrawler.app",
+    "productName": "新聞爬蟲",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "extraFiles": [
+      {
+        "from": "default-websites.txt",
+        "to": "."
+      },
+      {
+        "from": "manual-search-sites.txt",
+        "to": "."
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0"
+  }
+}
