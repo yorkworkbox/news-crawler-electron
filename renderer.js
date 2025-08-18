@@ -551,10 +551,28 @@ async function searchWebsite(website, keyword) {
             rawHtmlCache[website.name] = text;
         }
         let items = [];
-        if (website.name.includes('奧丁丁')) items = parseOwlting(text);
-        else if (website.name.includes('Life生活網')) items = parseLifeNews(text, website.url);
-        else if ((response.headers.get('content-type') || '').includes('xml')) items = parseRSS(text);
-        else items = parseHTML(text, website.url);
+        
+        // --- vvv 修改重點 vvv ---
+        // 原本是比對 website.name，現在改為比對 website.url 的主機名稱
+        // 這樣即使您在清單中修改媒體名稱，專用解析器依然能正確作用
+        try {
+            const url = new URL(website.url);
+            if (url.hostname.includes('owlting.com')) {
+                items = parseOwlting(text);
+            } else if (url.hostname.includes('life.tw')) {
+                items = parseLifeNews(text, website.url);
+            } else if ((response.headers.get('content-type') || '').includes('xml')) {
+                items = parseRSS(text);
+            } else {
+                items = parseHTML(text, website.url);
+            }
+        } catch (e) {
+            // 如果 URL 無效，退回通用解析
+            console.error(`解析 URL 時出錯: ${website.url}`, e);
+            items = parseHTML(text, website.url);
+        }
+        // --- ^^^ 修改重點 ^^^ ---
+
         const searchKeyword = keyword.toLowerCase();
         const matches = items.filter(item => item.title.toLowerCase().includes(searchKeyword) || (item.content && item.content.includes(searchKeyword)));
         if (matches.length > 0) {
