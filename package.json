@@ -11,6 +11,11 @@
   "build": {
     "appId": "com.newscrawler.app",
     "productName": "新聞爬蟲",
+    "publish": {
+      "provider": "github",
+      "owner": "yorkworkbox",
+      "repo": "news-crawler-electron"
+    },
     "directories": {
       "output": "dist"
     },
@@ -36,5 +41,8 @@
   "devDependencies": {
     "electron": "^28.0.0",
     "electron-builder": "^24.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.1" 
   }
 }
