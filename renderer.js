@@ -512,11 +512,13 @@ function parseOwlting(htmlText) {
                 title = sentenceEnd !== -1 ? description.substring(0, sentenceEnd + 1).trim() : description.substring(0, 50).trim() + '...';
             }
             if (id && title) {
+                // --- vvv 修改重點 vvv ---
+                // 移除了 content 欄位，這樣搜尋時就只會比對 title
                 items.push({
                     title: title,
-                    url: `https://news.owlting.com/articles/${id}`,
-                    content: description.toLowerCase()
+                    url: `https://news.owlting.com/articles/${id}`
                 });
+                // --- ^^^ 修改重點 ^^^ ---
             }
         }
     } catch (e) { console.error('奧丁丁專用解析器失敗:', e); }
@@ -552,9 +554,6 @@ async function searchWebsite(website, keyword) {
         }
         let items = [];
         
-        // --- vvv 修改重點 vvv ---
-        // 原本是比對 website.name，現在改為比對 website.url 的主機名稱
-        // 這樣即使您在清單中修改媒體名稱，專用解析器依然能正確作用
         try {
             const url = new URL(website.url);
             if (url.hostname.includes('owlting.com')) {
@@ -571,7 +570,6 @@ async function searchWebsite(website, keyword) {
             console.error(`解析 URL 時出錯: ${website.url}`, e);
             items = parseHTML(text, website.url);
         }
-        // --- ^^^ 修改重點 ^^^ ---
 
         const searchKeyword = keyword.toLowerCase();
         const matches = items.filter(item => item.title.toLowerCase().includes(searchKeyword) || (item.content && item.content.includes(searchKeyword)));
