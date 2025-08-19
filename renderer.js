@@ -512,13 +512,10 @@ function parseOwlting(htmlText) {
                 title = sentenceEnd !== -1 ? description.substring(0, sentenceEnd + 1).trim() : description.substring(0, 50).trim() + '...';
             }
             if (id && title) {
-                // --- vvv 修改重點 vvv ---
-                // 移除了 content 欄位，這樣搜尋時就只會比對 title
                 items.push({
                     title: title,
                     url: `https://news.owlting.com/articles/${id}`
                 });
-                // --- ^^^ 修改重點 ^^^ ---
             }
         }
     } catch (e) { console.error('奧丁丁專用解析器失敗:', e); }
@@ -542,7 +539,19 @@ function parseLifeNews(htmlText, baseUrl) {
 async function searchWebsite(website, keyword) {
     const isDebugMode = document.getElementById('debugModeCheckbox').checked;
     try {
-        const response = await fetch(website.url, {
+        // --- vvv 修改重點 vvv ---
+        // 1. 建立一個目標 URL 變數
+        let targetUrl = website.url;
+
+        // 2. 檢查 URL 是否包含預留位置
+        if (targetUrl.includes('%%KEYWORD%%')) {
+            // 3. 如果包含，就用 encodeURIComponent 編碼過的關鍵字替換它
+            targetUrl = targetUrl.replace(/%%KEYWORD%%/g, encodeURIComponent(keyword));
+        }
+        // --- ^^^ 修改重點 ^^^ ---
+
+        // 4. 在 fetch 中使用處理過的 targetUrl
+        const response = await fetch(targetUrl, {
             method: 'GET',
             headers: { 'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)], 'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9' },
             timeout: 15000, redirect: 'follow'
@@ -555,20 +564,19 @@ async function searchWebsite(website, keyword) {
         let items = [];
         
         try {
-            const url = new URL(website.url);
+            const url = new URL(targetUrl); // 使用 targetUrl 進行主機名稱判斷
             if (url.hostname.includes('owlting.com')) {
                 items = parseOwlting(text);
             } else if (url.hostname.includes('life.tw')) {
-                items = parseLifeNews(text, website.url);
+                items = parseLifeNews(text, targetUrl);
             } else if ((response.headers.get('content-type') || '').includes('xml')) {
                 items = parseRSS(text);
             } else {
-                items = parseHTML(text, website.url);
+                items = parseHTML(text, targetUrl);
             }
         } catch (e) {
-            // 如果 URL 無效，退回通用解析
-            console.error(`解析 URL 時出錯: ${website.url}`, e);
-            items = parseHTML(text, website.url);
+            console.error(`解析 URL 時出錯: ${targetUrl}`, e);
+            items = parseHTML(text, targetUrl);
         }
 
         const searchKeyword = keyword.toLowerCase();
