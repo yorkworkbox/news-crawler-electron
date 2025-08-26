@@ -8,6 +8,11 @@ let manualSearchState = [];
 let searchResultIdCounter = 0;
 let stopSearchRequested = false;
 let searchBtnWidth = 0;
+// --- ▼▼▼ 新增變數 ▼▼▼ ---
+let isTimedSearching = false;
+let timedSearchTimer = null;
+let countdownInterval = null;
+// --- ▲▲▲ 新增變數 ▲▲▲ ---
 
 window.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'light') {
@@ -18,6 +23,9 @@ window.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('keyword').addEventListener('focus', () => clearInputError('keyword'));
     document.getElementById('tabContainer').addEventListener('change', () => clearInputError('website'));
+    // --- ▼▼▼ 新增事件監聽 ▼▼▼ ---
+    document.getElementById('toggleTimedSearchBtn').addEventListener('click', toggleTimedSearch);
+    // --- ▲▲▲ 新增事件監聽 ▲▲▲ ---
 });
 
 function switchTab(tabName) {
@@ -298,8 +306,89 @@ function clearInputError(type) {
     }
 }
 
-async function startSearch() {
+// --- ▼▼▼ START: 新增/修改函式 (定時爬取邏輯) ▼▼▼ ---
+
+function toggleTimedSearch() {
+    if (isTimedSearching) {
+        // --- 停止定時爬取 ---
+        isTimedSearching = false;
+        clearTimeout(timedSearchTimer);
+        clearInterval(countdownInterval);
+        timedSearchTimer = null;
+        countdownInterval = null;
+
+        document.getElementById('intervalInput').disabled = false;
+        document.getElementById('searchBtn').disabled = false;
+        const btn = document.getElementById('toggleTimedSearchBtn');
+        btn.classList.remove('btn-danger');
+        btn.classList.add('btn-secondary');
+        btn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg> <span>定時爬取</span>`;
+
+        document.getElementById('timedSearchStatus').classList.add('hidden');
+        showStatus('已停止定時爬取', 'info');
+
+    } else {
+        // --- 開始定時爬取 ---
+        if (isSearching) {
+            showStatus('請先等待目前的手動搜尋完成', 'error');
+            return;
+        }
+
+        isTimedSearching = true;
+        document.getElementById('intervalInput').disabled = true;
+        document.getElementById('searchBtn').disabled = true;
+        const btn = document.getElementById('toggleTimedSearchBtn');
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-danger');
+        btn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg> <span>停止定時</span>`;
+        
+        showStatus('定時爬取已啟動，立即執行第一次...', 'success');
+        startSearch(true); // 立即執行第一次
+    }
+}
+
+function scheduleNextSearch() {
+    if (!isTimedSearching) return;
+
+    const intervalMinutes = parseInt(document.getElementById('intervalInput').value, 10) || 30;
+    const randomFactor = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+    const delay = intervalMinutes * randomFactor * 60 * 1000;
+    
+    const nextTime = new Date(Date.now() + delay);
+    
+    const statusEl = document.getElementById('timedSearchStatus');
+    statusEl.classList.remove('hidden');
+
+    clearInterval(countdownInterval);
+    const updateCountdown = () => {
+        const remainingMs = nextTime.getTime() - Date.now();
+        if (remainingMs <= 0) {
+            statusEl.textContent = '準備執行下一次爬取...';
+            clearInterval(countdownInterval);
+            return;
+        }
+        const remainingSeconds = Math.round(remainingMs / 1000);
+        const minutes = Math.floor(remainingSeconds / 60);
+        const seconds = remainingSeconds % 60;
+        statusEl.textContent = `下一次爬取將於 ${nextTime.toLocaleTimeString()} 執行 (剩餘 ${minutes} 分 ${seconds.toString().padStart(2, '0')} 秒)`;
+    };
+    
+    updateCountdown();
+    countdownInterval = setInterval(updateCountdown, 1000);
+
+    timedSearchTimer = setTimeout(() => {
+        startSearch(true);
+    }, delay);
+}
+
+
+async function startSearch(isTimed = false) { // 修改：增加 isTimed 參數
     if (isSearching) return;
+    if (!isTimed && isTimedSearching) { // 如果是手動觸發且定時器正在運行
+        showStatus('定時爬取運行中，請先停止定時再手動搜尋。', 'error');
+        return;
+    }
+
     clearInputError('keyword');
     clearInputError('website');
 
@@ -309,6 +398,10 @@ async function startSearch() {
         const errorEl = document.getElementById('keywordError');
         errorEl.textContent = '請輸入關鍵字';
         errorEl.classList.add('show');
+        if (isTimed) { // 如果是定時觸發但缺少關鍵字，則停止定時
+            toggleTimedSearch(); // 會自動切換狀態並顯示提示
+            showStatus('因缺少關鍵字，定時爬取已自動停止。', 'error');
+        }
         return;
     }
     const websitesToSearch = currentWebsiteState.filter(w => w.checked);
@@ -317,6 +410,10 @@ async function startSearch() {
         const errorEl = document.getElementById('websiteError');
         errorEl.textContent = '請至少選擇一個網站進行搜尋';
         errorEl.classList.add('show');
+         if (isTimed) {
+            toggleTimedSearch();
+            showStatus('因未選擇網站，定時爬取已自動停止。', 'error');
+        }
         return;
     }
 
@@ -324,16 +421,19 @@ async function startSearch() {
     stopSearchRequested = false;
     const searchBtn = document.getElementById('searchBtn');
     
-    if (searchBtnWidth === 0) searchBtnWidth = searchBtn.offsetWidth;
-    searchBtn.style.minWidth = `${searchBtnWidth}px`;
-    
-    searchBtn.classList.remove('btn-primary');
-    searchBtn.classList.add('btn-danger');
-    searchBtn.onclick = requestStopSearch;
-    searchBtn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg> <span>停止搜尋</span>`;
+    // 如果是手動搜尋，才改變按鈕樣式
+    if (!isTimed) {
+        if (searchBtnWidth === 0) searchBtnWidth = searchBtn.offsetWidth;
+        searchBtn.style.minWidth = `${searchBtnWidth}px`;
+        searchBtn.classList.remove('btn-primary');
+        searchBtn.classList.add('btn-danger');
+        searchBtn.onclick = requestStopSearch;
+        searchBtn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/></svg> <span>停止搜尋</span>`;
+        document.getElementById('toggleTimedSearchBtn').disabled = true;
+    }
 
     clearResults(true);
-    document.getElementById('resultCount').textContent = '搜尋中...';
+    document.getElementById('resultCount').textContent = `搜尋中... (${isTimed ? '定時' : '手動'})`;
     
     try {
         const CONCURRENT_LIMIT = 4;
@@ -381,24 +481,36 @@ async function startSearch() {
         const successCount = searchResults.filter(r => r.status === 'success').length;
         const searchedCount = new Set(searchResults.map(r => r.website)).size;
         const resultCountEl = document.getElementById('resultCount');
+        let summaryText;
 
         if (stopSearchRequested) {
-            resultCountEl.textContent = `中斷 (找到 ${successCount} 筆，搜尋了 ${searchedCount} 個網站)`;
+            summaryText = `中斷 (找到 ${successCount} 筆，搜尋了 ${searchedCount} 個網站)`;
         } else {
-            resultCountEl.textContent = `完成 (找到 ${successCount} 筆，搜尋了 ${searchedCount} 個網站)`;
+            summaryText = `完成 (找到 ${successCount} 筆，搜尋了 ${searchedCount} 個網站)`;
         }
+        resultCountEl.textContent = summaryText;
         
-        searchBtn.disabled = false;
-        searchBtn.classList.remove('btn-danger');
-        searchBtn.classList.add('btn-primary');
-        searchBtn.onclick = startSearch;
-        searchBtn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg> <span>開始搜尋</span>`;
-        searchBtn.style.minWidth = '';
+        // 修改：根據是否為定時搜尋，決定後續操作
+        if (isTimed) {
+            const notificationTitle = `定時爬取完成`;
+            const notificationBody = `關鍵字「${keyword}」：${summaryText}`;
+            window.electronAPI.showNotification(notificationTitle, notificationBody);
+            scheduleNextSearch(); // 安排下一次
+        } else {
+            searchBtn.disabled = false;
+            searchBtn.classList.remove('btn-danger');
+            searchBtn.classList.add('btn-primary');
+            searchBtn.onclick = () => startSearch(false);
+            searchBtn.innerHTML = `<svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg> <span>開始搜尋</span>`;
+            searchBtn.style.minWidth = '';
+            document.getElementById('toggleTimedSearchBtn').disabled = false;
+        }
         
         updateProgress(0, 0, '');
         stopSearchRequested = false;
     }
 }
+// --- ▲▲▲ END: 新增/修改函式 (定時爬取邏輯) ▲▲▲ ---
 
 function toggleTheme() {
     document.body.classList.toggle('light-mode');
@@ -539,18 +651,10 @@ function parseLifeNews(htmlText, baseUrl) {
 async function searchWebsite(website, keyword) {
     const isDebugMode = document.getElementById('debugModeCheckbox').checked;
     try {
-        // --- vvv 修改重點 vvv ---
-        // 1. 建立一個目標 URL 變數
         let targetUrl = website.url;
-
-        // 2. 檢查 URL 是否包含預留位置
         if (targetUrl.includes('%%KEYWORD%%')) {
-            // 3. 如果包含，就用 encodeURIComponent 編碼過的關鍵字替換它
             targetUrl = targetUrl.replace(/%%KEYWORD%%/g, encodeURIComponent(keyword));
         }
-        // --- ^^^ 修改重點 ^^^ ---
-
-        // 4. 在 fetch 中使用處理過的 targetUrl
         const response = await fetch(targetUrl, {
             method: 'GET',
             headers: { 'User-Agent': userAgents[Math.floor(Math.random() * userAgents.length)], 'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9' },
@@ -564,7 +668,7 @@ async function searchWebsite(website, keyword) {
         let items = [];
         
         try {
-            const url = new URL(targetUrl); // 使用 targetUrl 進行主機名稱判斷
+            const url = new URL(targetUrl);
             if (url.hostname.includes('owlting.com')) {
                 items = parseOwlting(text);
             } else if (url.hostname.includes('life.tw')) {
@@ -607,8 +711,6 @@ async function searchWebsite(website, keyword) {
     }
 }
 
-// --- vvv MAJOR REFACTOR vvv ---
-// --- vvv 顯示結果排序邏輯修正 vvv ---
 function displayResults() {
     const isDebugMode = document.getElementById('debugModeCheckbox').checked;
     const resultsContainer = document.getElementById('resultsContainer');
@@ -622,13 +724,10 @@ function displayResults() {
         groupedResults[result.website].push(result);
     });
 
-    // --- 排序修正的核心邏輯 ---
-    // 1. 取得目前已經有結果的網站名稱列表 (此時是亂序的)
     const websitesWithResults = Object.keys(groupedResults);
-    // 2. 參照 `currentWebsiteState` (它保有原始順序) 來過濾和排序
     const orderedWebsiteNames = currentWebsiteState
-        .map(website => website.name) // 取出原始順序的名稱陣列
-        .filter(name => websitesWithResults.includes(name)); // 只保留那些已經有結果的網站
+        .map(website => website.name)
+        .filter(name => websitesWithResults.includes(name));
 
     const successCount = searchResults.filter(r => r.status === 'success').length;
     if (!isSearching) {
@@ -636,7 +735,6 @@ function displayResults() {
     }
     
     let html = '';
-    // 3. 使用我們剛剛排序好的 `orderedWebsiteNames` 來產生畫面
     orderedWebsiteNames.forEach(website => {
         const results = groupedResults[website];
         const hasSuccess = results.some(r => r.status === 'success');
@@ -676,8 +774,6 @@ function displayResults() {
     resultsContainer.innerHTML = html;
     document.getElementById('resultsSection').classList.remove('hidden');
 }
-// --- ^^^ 顯示結果排序邏輯修正 ^^^ ---
-// --- ^^^ MAJOR REFACTOR ^^^ ---
 
 function showConfirmation(title, message) {
     return new Promise((resolve) => {

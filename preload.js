@@ -5,10 +5,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getDefaultWebsitesContent: () => ipcRenderer.invoke('get-default-websites-content'),
     saveDefaultWebsitesContent: (content) => ipcRenderer.invoke('save-default-websites-content', content),
     
-    // --- 新增：手動搜尋清單的 API ---
+    // 手動搜尋清單的 API
     getManualSitesContent: () => ipcRenderer.invoke('get-manual-sites-content'),
     saveManualSitesContent: (content) => ipcRenderer.invoke('save-manual-sites-content', content),
 
-    // --- 新增：開啟外部連結的 API ---
-    openExternalLink: (url) => ipcRenderer.invoke('open-external-link', url)
+    // 開啟外部連結的 API
+    openExternalLink: (url) => ipcRenderer.invoke('open-external-link', url),
+
+    // --- ▼▼▼ 新增：顯示桌面通知的 API ▼▼▼ ---
+    showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body })
 });

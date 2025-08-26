@@ -1,5 +1,5 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const { autoUpdater } = require('electron-updater'); // 新增這一行
+const { app, BrowserWindow, ipcMain, shell, Notification } = require('electron'); // 修改：新增 Notification
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -99,3 +99,17 @@ ipcMain.handle('save-manual-sites-content', async (event, content) => {
 ipcMain.handle('open-external-link', (event, url) => {
     shell.openExternal(url);
 });
+
+// ▼▼▼ START: 新增區塊 ▼▼▼
+// 監聽來自渲染程序的通知請求
+ipcMain.on('show-notification', (event, { title, body }) => {
+    if (Notification.isSupported()) {
+        const notification = new Notification({
+            title: title,
+            body: body,
+            silent: false // 確保有音效提示
+        });
+        notification.show();
+    }
+});
+// ▲▲▲ END: 新增區塊 ▲▲▲

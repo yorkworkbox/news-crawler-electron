@@ -82,6 +82,21 @@
                 <button class="btn btn-primary hidden" id="saveAsDefaultBtn" onclick="saveToDefaultFile()">儲存成預設清單</button>
             </div>
 
+            <!-- ▼▼▼ START: 新增區塊 ▼▼▼ -->
+            <div class="timed-search-section">
+                <div class="timed-search-controls">
+                    <label for="intervalInput">每隔</label>
+                    <input type="number" id="intervalInput" value="30" min="1" class="interval-input">
+                    <label for="intervalInput">分鐘 (±20%)</label>
+                    <button class="btn btn-secondary" id="toggleTimedSearchBtn">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>
+                        <span>定時爬取</span>
+                    </button>
+                </div>
+                <div id="timedSearchStatus" class="timed-search-status hidden"></div>
+            </div>
+            <!-- ▲▲▲ END: 新增區塊 ▲▲▲ -->
+
             <div class="debug-mode-toggle"><input type="checkbox" id="debugModeCheckbox"><label for="debugModeCheckbox">啟用除錯模式</label></div>
             <div id="progressContainer" class="hidden" style="margin-top: 20px;">
                 <div id="progressText" style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;"></div>
