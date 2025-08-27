@@ -2,6 +2,7 @@
 
 let isSearching = false;
 let searchResults = [];
+let previousSearchResults = []; // 新增：儲存上一次的搜尋結果
 let rawHtmlCache = {};
 let currentWebsiteState = [];
 let manualSearchState = [];
@@ -424,19 +425,25 @@ async function startSearch(isTimed = false) {
         document.getElementById('toggleTimedSearchBtn').disabled = true;
     }
 
-    clearResults(true);
+    // --- ▼▼▼ START: 修改重點 ▼▼▼ ---
+    // 在清空當前結果之前，先將其儲存起來用於比對
+    if (isTimed) {
+        previousSearchResults = [...searchResults]; // 複製當前結果到「上一次」
+    } else {
+        previousSearchResults = []; // 手動搜尋總是全新的，不清空舊結果
+    }
+    // --- ▲▲▲ END: 修改重點 ▲▲▲ ---
+
+    clearResults(true); // 清空 searchResults 陣列
     document.getElementById('resultCount').textContent = `搜尋中... (${isTimed ? '定時' : '手動'})`;
     
     try {
         const CONCURRENT_LIMIT = 4;
         const websitesQueue = [...websitesToSearch];
         const totalWebsites = websitesQueue.length;
-        
-        // --- ▼▼▼ START: 修改重點 ▼▼▼ ---
         let completedCount = 0;
-        const activeSearches = new Set(); // 新增：用於追蹤當前活動的搜尋
+        const activeSearches = new Set();
 
-        // 新增：一個統一更新進度條的函式
         const updateSharedProgress = () => {
             const currentProgressCount = completedCount + activeSearches.size;
             const activeNames = Array.from(activeSearches).join(', ');
@@ -447,8 +454,7 @@ async function startSearch(isTimed = false) {
             updateProgress(currentProgressCount, totalWebsites, progressText);
         };
         
-        updateSharedProgress(); // 初始呼叫
-        // --- ▲▲▲ END: 修改重點 ▲▲▲ ---
+        updateSharedProgress();
 
         const worker = async () => {
             while (websitesQueue.length > 0) {
@@ -457,18 +463,14 @@ async function startSearch(isTimed = false) {
                 const website = websitesQueue.shift();
                 if (!website) continue;
                 
-                // --- ▼▼▼ START: 修改重點 ▼▼▼ ---
-                // 任務開始前：加入活動清單並更新進度
                 activeSearches.add(website.name);
                 updateSharedProgress();
                 
                 const results = await searchWebsite(website, keyword);
                 
-                // 任務結束後：移出活動清單、增加完成計數並再次更新進度
                 activeSearches.delete(website.name);
                 completedCount++;
                 updateSharedProgress();
-                // --- ▲▲▲ END: 修改重點 ▲▲▲ ---
                 
                 if (results) {
                     searchResults.push(...results);
@@ -553,6 +555,7 @@ async function clearResults(isFromSearch = false) {
     if (!isFromSearch && searchResults.length > 0) {
         const confirmed = await showConfirmation('確認清除', '確定要清除所有搜尋結果嗎？此操作無法復原。');
         if (!confirmed) return;
+        previousSearchResults = []; // 手動清除時，也把舊結果記憶清除
     }
     document.getElementById('resultsSection').classList.add('hidden');
     document.getElementById('resultsContainer').innerHTML = '';
@@ -726,6 +729,7 @@ async function searchWebsite(website, keyword) {
     }
 }
 
+// --- ▼▼▼ START: displayResults 修改重點 ▼▼▼ ---
 function displayResults() {
     const isDebugMode = document.getElementById('debugModeCheckbox').checked;
     const resultsContainer = document.getElementById('resultsContainer');
@@ -733,6 +737,14 @@ function displayResults() {
          document.getElementById('resultsSection').classList.add('hidden');
          return;
     }
+    
+    // 建立一個 Set，包含上一次所有成功連結的 URL，用於快速查找
+    const previousUrls = new Set(
+        previousSearchResults
+            .filter(r => r.status === 'success')
+            .map(r => r.url)
+    );
+
     const groupedResults = {};
     searchResults.forEach(result => {
         if (!groupedResults[result.website]) groupedResults[result.website] = [];
@@ -767,10 +779,15 @@ function displayResults() {
         
         results.forEach(result => {
             if (result.status === 'success') {
+                // 檢查這個連結的 URL 是否存在於上一次的結果中
+                const isNew = !previousUrls.has(result.url);
+                const newResultClass = isNew ? 'new-result' : '';
+                const newTag = isNew ? '<span class="new-tag">[NEW]</span> ' : '';
+
                 html += `
-                <div class="result-link-item">
+                <div class="result-link-item ${newResultClass}">
                     <button class="btn-delete" title="刪除此連結" onclick="deleteResult(${result.id})">×</button>
-                    <div style="font-weight: 500; margin-bottom: 8px;">${result.title}</div>
+                    <div style="font-weight: 500; margin-bottom: 8px;">${newTag}${result.title}</div>
                     <div style="color: var(--text-secondary); font-size: 13px; word-break: break-all; margin-bottom: 8px;">${result.url}</div>
                     <div style="display: flex; gap: 8px;">
                         <button class="btn btn-secondary btn-small" onclick="copyToClipboard('${result.url.replace(/'/g, "\\'")}')">複製</button>
@@ -789,6 +806,7 @@ function displayResults() {
     resultsContainer.innerHTML = html;
     document.getElementById('resultsSection').classList.remove('hidden');
 }
+// --- ▲▲▲ END: displayResults 修改重點 ▲▲▲ ---
 
 function showConfirmation(title, message) {
     return new Promise((resolve) => {
