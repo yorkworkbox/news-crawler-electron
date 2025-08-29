@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // 開啟外部連結的 API
     openExternalLink: (url) => ipcRenderer.invoke('open-external-link', url),
 
-    // --- ▼▼▼ 新增：顯示桌面通知的 API ▼▼▼ ---
-    showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body })
+    // 顯示桌面通知的 API
+    showNotification: (title, body) => ipcRenderer.send('show-notification', { title, body }),
+
+    // --- ▼▼▼ 新增：閃爍圖示的 API ▼▼▼ ---
+    flashFrame: () => ipcRenderer.send('flash-frame')
 });

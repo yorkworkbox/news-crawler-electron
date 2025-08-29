@@ -1,7 +1,9 @@
-const { app, BrowserWindow, ipcMain, shell, Notification } = require('electron'); // 修改：新增 Notification
+const { app, BrowserWindow, ipcMain, shell, Notification } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
+
+let mainWindow; // <<< 修改：將 mainWindow 宣告移到外面
 
 const defaultWebsitesContent = `Yahoo：https://tw.stock.yahoo.com/rss?q=sunmedia
 Line：https://today.line.me/tw/v2/publisher/104464
@@ -18,7 +20,8 @@ YES新聞：https://www.yesmedia.com.tw/?s=%E5%95%86%E5%82%B3%E5%AA%92
 台灣線報：https://twline365.com/feed/sunmedia/
 民生電子報：https://lifenews.com.tw/page/1/?s=%E5%95%86%E5%82%B3%E5%AA%92
 警政時報：https://www.tcpttw.com/?s=%E5%95%86%E5%82%B3%E5%AA%92
-墨新聞：https://more-news.tw/author/sunmedia/`;
+墨新聞：https://more-news.tw/author/sunmedia/
+商傳媒：https://sunmedia.tw/`;
 
 const defaultManualSitesContent = `AMM新聞：https://ammtw.com/?s=%E5%95%86%E5%82%B3%E5%AA%92
 台北郵報：https://taipeipost.org/?s=%E5%95%86%E5%82%B3%E5%AA%92#google_vignette`;
@@ -29,7 +32,7 @@ function getFilePath(fileName) {
 }
 
 function createWindow() {
-    const mainWindow = new BrowserWindow({
+    mainWindow = new BrowserWindow({ // <<< 修改：移除 const
         width: 1200,
         height: 800,
         webPreferences: {
@@ -40,7 +43,6 @@ function createWindow() {
     mainWindow.loadFile('index.html');
     mainWindow.setMenuBarVisibility(false);
 
-    // 應用程式啟動時，檢查更新
     mainWindow.once('ready-to-show', () => {
       autoUpdater.checkForUpdatesAndNotify();
     });
@@ -100,16 +102,22 @@ ipcMain.handle('open-external-link', (event, url) => {
     shell.openExternal(url);
 });
 
-// ▼▼▼ START: 新增區塊 ▼▼▼
-// 監聽來自渲染程序的通知請求
 ipcMain.on('show-notification', (event, { title, body }) => {
     if (Notification.isSupported()) {
         const notification = new Notification({
             title: title,
             body: body,
-            silent: false // 確保有音效提示
+            silent: false
         });
         notification.show();
+    }
+});
+
+// ▼▼▼ START: 新增區塊 ▼▼▼
+// 監聽來自渲染程序的閃爍圖示請求
+ipcMain.on('flash-frame', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.flashFrame(true); // 開始閃爍，直到視窗獲得焦點
     }
 });
 // ▲▲▲ END: 新增區塊 ▲▲▲

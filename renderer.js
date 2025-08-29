@@ -2,7 +2,7 @@
 
 let isSearching = false;
 let searchResults = [];
-let previousSearchResults = []; // 儲存上一次的搜尋結果
+let previousSearchResults = [];
 let rawHtmlCache = {};
 let currentWebsiteState = [];
 let manualSearchState = [];
@@ -13,6 +13,7 @@ let searchBtnWidth = 0;
 let isTimedSearching = false;
 let timedSearchTimer = null;
 let countdownInterval = null;
+let isFirstTimedSearch = true; // 新增：用於判斷是否為首次定時搜尋
 
 window.addEventListener('DOMContentLoaded', () => {
     if (localStorage.getItem('theme') === 'light') {
@@ -328,6 +329,7 @@ function toggleTimedSearch() {
             return;
         }
 
+        isFirstTimedSearch = true; // <<< 修改：每次開始都重設為首次
         isTimedSearching = true;
         document.getElementById('intervalInput').disabled = true;
         document.getElementById('searchBtn').disabled = true;
@@ -494,6 +496,8 @@ async function startSearch(isTimed = false) {
     } finally {
         isSearching = false;
         
+        window.electronAPI.flashFrame(); // <<< 修改：搜尋完成後，總是請求閃爍圖示
+
         const successCount = searchResults.filter(r => r.status === 'success').length;
         const searchedCount = new Set(searchResults.map(r => r.website)).size;
         const resultCountEl = document.getElementById('resultCount');
@@ -507,10 +511,15 @@ async function startSearch(isTimed = false) {
         resultCountEl.textContent = summaryText;
         
         if (isTimed) {
-            const notificationTitle = `定時爬取完成`;
-            const notificationBody = `關鍵字「${keyword}」：${summaryText}`;
-            window.electronAPI.showNotification(notificationTitle, notificationBody);
+            // ▼▼▼ START: 修改重點 ▼▼▼
+            if (!isFirstTimedSearch) { // 只有在不是首次定時搜尋時才發送通知
+                const notificationTitle = `定時爬取完成`;
+                const notificationBody = `關鍵字「${keyword}」：${summaryText}`;
+                window.electronAPI.showNotification(notificationTitle, notificationBody);
+            }
+            isFirstTimedSearch = false; // 在首次運行後，將標誌設為 false
             scheduleNextSearch();
+            // ▲▲▲ END: 修改重點 ▲▲▲
         } else {
             searchBtn.disabled = false;
             searchBtn.classList.remove('btn-danger');
@@ -850,9 +859,7 @@ function copyToClipboard(text) {
     }).catch(err => { showStatus('複製失敗', 'error'); });
 }
 
-// --- ▼▼▼ START: copyAllResults 修改重點 ▼▼▼ ---
 function copyAllResults() {
-    // 步驟 1: 將成功結果按媒體名稱分組
     const grouped = searchResults
         .filter(r => r.status === 'success')
         .reduce((acc, r) => {
@@ -869,18 +876,14 @@ function copyAllResults() {
     let output = '';
     const websitesWithResults = Object.keys(grouped);
 
-    // 步驟 2: 遍歷 `currentWebsiteState` (保有正確 UI 順序的陣列)
     currentWebsiteState.forEach(website => {
-        // 步驟 3: 檢查這個媒體是否有成功的結果
         if (websitesWithResults.includes(website.name)) {
-            // 如果有，就按照 `currentWebsiteState` 的順序添加到輸出字串中
             output += `${website.name}\n${grouped[website.name].join('\n')}\n\n`;
         }
     });
 
     copyToClipboard(output.trim());
 }
-// --- ▲▲▲ END: copyAllResults 修改重點 ▲▲▲ ---
 
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey) {
