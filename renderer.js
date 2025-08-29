@@ -2,7 +2,7 @@
 
 let isSearching = false;
 let searchResults = [];
-let previousSearchResults = []; // 新增：儲存上一次的搜尋結果
+let previousSearchResults = []; // 儲存上一次的搜尋結果
 let rawHtmlCache = {};
 let currentWebsiteState = [];
 let manualSearchState = [];
@@ -425,16 +425,13 @@ async function startSearch(isTimed = false) {
         document.getElementById('toggleTimedSearchBtn').disabled = true;
     }
 
-    // --- ▼▼▼ START: 修改重點 ▼▼▼ ---
-    // 在清空當前結果之前，先將其儲存起來用於比對
     if (isTimed) {
-        previousSearchResults = [...searchResults]; // 複製當前結果到「上一次」
+        previousSearchResults = [...searchResults]; 
     } else {
-        previousSearchResults = []; // 手動搜尋總是全新的，不清空舊結果
+        previousSearchResults = []; 
     }
-    // --- ▲▲▲ END: 修改重點 ▲▲▲ ---
 
-    clearResults(true); // 清空 searchResults 陣列
+    clearResults(true); 
     document.getElementById('resultCount').textContent = `搜尋中... (${isTimed ? '定時' : '手動'})`;
     
     try {
@@ -555,7 +552,7 @@ async function clearResults(isFromSearch = false) {
     if (!isFromSearch && searchResults.length > 0) {
         const confirmed = await showConfirmation('確認清除', '確定要清除所有搜尋結果嗎？此操作無法復原。');
         if (!confirmed) return;
-        previousSearchResults = []; // 手動清除時，也把舊結果記憶清除
+        previousSearchResults = []; 
     }
     document.getElementById('resultsSection').classList.add('hidden');
     document.getElementById('resultsContainer').innerHTML = '';
@@ -729,7 +726,6 @@ async function searchWebsite(website, keyword) {
     }
 }
 
-// --- ▼▼▼ START: displayResults 修改重點 ▼▼▼ ---
 function displayResults() {
     const isDebugMode = document.getElementById('debugModeCheckbox').checked;
     const resultsContainer = document.getElementById('resultsContainer');
@@ -738,7 +734,6 @@ function displayResults() {
          return;
     }
     
-    // 建立一個 Set，包含上一次所有成功連結的 URL，用於快速查找
     const previousUrls = new Set(
         previousSearchResults
             .filter(r => r.status === 'success')
@@ -779,7 +774,6 @@ function displayResults() {
         
         results.forEach(result => {
             if (result.status === 'success') {
-                // 檢查這個連結的 URL 是否存在於上一次的結果中
                 const isNew = !previousUrls.has(result.url);
                 const newResultClass = isNew ? 'new-result' : '';
                 const newTag = isNew ? '<span class="new-tag">[NEW]</span> ' : '';
@@ -806,7 +800,6 @@ function displayResults() {
     resultsContainer.innerHTML = html;
     document.getElementById('resultsSection').classList.remove('hidden');
 }
-// --- ▲▲▲ END: displayResults 修改重點 ▲▲▲ ---
 
 function showConfirmation(title, message) {
     return new Promise((resolve) => {
@@ -857,25 +850,37 @@ function copyToClipboard(text) {
     }).catch(err => { showStatus('複製失敗', 'error'); });
 }
 
+// --- ▼▼▼ START: copyAllResults 修改重點 ▼▼▼ ---
 function copyAllResults() {
-    const grouped = searchResults.filter(r => r.status === 'success').reduce((acc, r) => {
-        if (!acc[r.website]) acc[r.website] = [];
-        acc[r.website].push(r.url);
-        return acc;
-    }, {});
-    if (Object.keys(grouped).length === 0) { showStatus('沒有可複製的連結', 'error'); return; }
-    let output = '';
-    const orderedWebsiteNames = [];
-    for (const result of searchResults) {
-        if (result.status === 'success' && !orderedWebsiteNames.includes(result.website)) {
-            orderedWebsiteNames.push(result.website);
-        }
+    // 步驟 1: 將成功結果按媒體名稱分組
+    const grouped = searchResults
+        .filter(r => r.status === 'success')
+        .reduce((acc, r) => {
+            if (!acc[r.website]) acc[r.website] = [];
+            acc[r.website].push(r.url);
+            return acc;
+        }, {});
+
+    if (Object.keys(grouped).length === 0) {
+        showStatus('沒有可複製的連結', 'error');
+        return;
     }
-    orderedWebsiteNames.forEach(website => {
-        output += `${website}\n${grouped[website].join('\n')}\n\n`;
+
+    let output = '';
+    const websitesWithResults = Object.keys(grouped);
+
+    // 步驟 2: 遍歷 `currentWebsiteState` (保有正確 UI 順序的陣列)
+    currentWebsiteState.forEach(website => {
+        // 步驟 3: 檢查這個媒體是否有成功的結果
+        if (websitesWithResults.includes(website.name)) {
+            // 如果有，就按照 `currentWebsiteState` 的順序添加到輸出字串中
+            output += `${website.name}\n${grouped[website.name].join('\n')}\n\n`;
+        }
     });
+
     copyToClipboard(output.trim());
 }
+// --- ▲▲▲ END: copyAllResults 修改重點 ▲▲▲ ---
 
 document.addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey) {
