@@ -82,7 +82,6 @@
                 <button class="btn btn-primary hidden" id="saveAsDefaultBtn" onclick="saveToDefaultFile()">儲存成預設清單</button>
             </div>
 
-            <!-- ▼▼▼ START: 新增區塊 ▼▼▼ -->
             <div class="timed-search-section">
                 <div class="timed-search-controls">
                     <label for="intervalInput">每隔</label>
@@ -93,9 +92,14 @@
                         <span>定時爬取</span>
                     </button>
                 </div>
+                <!-- ▼▼▼ START: 新增區塊 ▼▼▼ -->
+                <div class="timed-search-options">
+                    <input type="checkbox" id="forceRefreshCheckbox">
+                    <label for="forceRefreshCheckbox">每次重新爬取所有勾選項目 (而非僅重試失敗項目)</label>
+                </div>
+                <!-- ▲▲▲ END: 新增區塊 ▲▲▲ -->
                 <div id="timedSearchStatus" class="timed-search-status hidden"></div>
             </div>
-            <!-- ▲▲▲ END: 新增區塊 ▲▲▲ -->
 
             <div class="debug-mode-toggle"><input type="checkbox" id="debugModeCheckbox"><label for="debugModeCheckbox">啟用除錯模式</label></div>
             <div id="progressContainer" class="hidden" style="margin-top: 20px;">
@@ -116,8 +120,8 @@
             <h3>使用說明</h3>
             <ul>
                 <li>在關鍵字欄位輸入要搜尋的關鍵字或完整新聞標題。</li>
-                <li>點擊「編輯」可同時修改兩個清單，修改後需點擊「儲存成預設清單」才會永久保存。</li>
-                <li>點擊分頁標籤可在「可爬取清單」與「手動清單」之間切換。</li>
+                <li>**定時爬取**：預設僅會重試上次失敗或無結果的網站，以累積完整結果。若需持續監控所有網站更新，請勾選「每次重新爬取所有勾選項目」。</li>
+                <li>點擊「編輯」可修改網站清單，修改後需點擊「儲存成預設清單」才會永久保存。</li>
             </ul>
         </div>
 
