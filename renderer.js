@@ -305,8 +305,11 @@ function clearInputError(type) {
     }
 }
 
+// --- ▼▼▼ START: toggleTimedSearch 修改重點 ▼▼▼ ---
 function toggleTimedSearch() {
     if (isTimedSearching) {
+        // --- 停止定時爬取 ---
+        stopSearchRequested = true; // << 新增：發出停止當前搜尋的請求
         isTimedSearching = false;
         clearTimeout(timedSearchTimer);
         clearInterval(countdownInterval);
@@ -325,6 +328,7 @@ function toggleTimedSearch() {
         showStatus('已停止定時爬取', 'info');
 
     } else {
+        // --- 開始定時爬取 ---
         if (isSearching) {
             showStatus('請先等待目前的手動搜尋完成', 'error');
             return;
@@ -344,6 +348,7 @@ function toggleTimedSearch() {
         startSearch(true);
     }
 }
+// --- ▲▲▲ END: toggleTimedSearch 修改重點 ▲▲▲ ---
 
 function scheduleNextSearch() {
     if (!isTimedSearching) return;
@@ -380,7 +385,6 @@ function scheduleNextSearch() {
 }
 
 
-// --- ▼▼▼ START: startSearch 核心修改 ▼▼▼ ---
 async function startSearch(isTimed = false) {
     if (isSearching) return;
     if (!isTimed && isTimedSearching) {
@@ -394,7 +398,9 @@ async function startSearch(isTimed = false) {
     const keyword = document.getElementById('keyword').value.trim();
     if (!keyword) {
         document.getElementById('keyword').classList.add('input-error');
-        document.getElementById('keywordError').classList.add('show');
+        const errorEl = document.getElementById('keywordError');
+        errorEl.textContent = '請輸入關鍵字';
+        errorEl.classList.add('show');
         if (isTimed) {
             toggleTimedSearch();
             showStatus('因缺少關鍵字，定時爬取已自動停止。', 'error');
@@ -402,15 +408,13 @@ async function startSearch(isTimed = false) {
         return;
     }
     
-    // --- 決定爬取目標 ---
     const forceRefresh = document.getElementById('forceRefreshCheckbox').checked;
     let websitesToSearch = [];
-    let preservedResults = []; // 用於存放需要保留的舊結果
+    let preservedResults = [];
 
     if (isTimed && !forceRefresh && !isFirstTimedSearch) {
-        // [定時重試模式]
         const successfulWebsites = new Set(searchResults.filter(r => r.status === 'success').map(r => r.website));
-        preservedResults = searchResults.filter(r => r.status === 'success'); // 保留成功的
+        preservedResults = searchResults.filter(r => r.status === 'success');
         
         const allCheckedWebsites = new Set(currentWebsiteState.filter(w => w.checked).map(w => w.name));
         
@@ -418,7 +422,6 @@ async function startSearch(isTimed = false) {
             allCheckedWebsites.has(w.name) && !successfulWebsites.has(w.name)
         );
     } else {
-        // [手動模式] 或 [首次定時] 或 [強制刷新模式]
         websitesToSearch = currentWebsiteState.filter(w => w.checked);
     }
     
@@ -434,9 +437,8 @@ async function startSearch(isTimed = false) {
     }
     
     if (isTimed && websitesToSearch.length === 0 && preservedResults.length > 0) {
-        // 所有項目都已成功，無需再爬取
         showStatus('所有目標媒體均已成功，本次無須重試。', 'info');
-        scheduleNextSearch(); // 直接安排下一次
+        scheduleNextSearch();
         return;
     }
 
@@ -454,15 +456,14 @@ async function startSearch(isTimed = false) {
         document.getElementById('toggleTimedSearchBtn').disabled = true;
     }
 
-    // 處理結果清空和保留邏輯
     if (isTimed) {
         previousSearchResults = [...searchResults];
     } else {
         previousSearchResults = [];
     }
     
-    clearResults(true); // 清空UI和陣列
-    searchResults = [...preservedResults]; // 將需要保留的結果加回來
+    clearResults(true);
+    searchResults = [...preservedResults];
 
     document.getElementById('resultCount').textContent = `搜尋中... (${isTimed ? '定時' : '手動'})`;
     
@@ -543,13 +544,13 @@ async function startSearch(isTimed = false) {
         displayResults();
         
         if (isTimed) {
-            if (!isFirstTimedSearch) {
+            if (!isFirstTimedSearch && !stopSearchRequested) { // 只有在不是首次且未被中斷時才發送通知
                 const notificationTitle = `定時爬取完成`;
                 const notificationBody = `關鍵字「${keyword}」：${summaryText}`;
                 window.electronAPI.showNotification(notificationTitle, notificationBody);
             }
             isFirstTimedSearch = false;
-            scheduleNextSearch();
+            if(!stopSearchRequested) scheduleNextSearch(); // 如果是被中斷的，就不再安排下一次
         } else {
             searchBtn.disabled = false;
             searchBtn.classList.remove('btn-danger');
@@ -564,7 +565,6 @@ async function startSearch(isTimed = false) {
         stopSearchRequested = false;
     }
 }
-// --- ▲▲▲ END: startSearch 核心修改 ▲▲▲ ---
 
 function toggleTheme() {
     document.body.classList.toggle('light-mode');
