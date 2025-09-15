@@ -21,7 +21,7 @@ YES新聞：https://www.yesmedia.com.tw/?s=%E5%95%86%E5%82%B3%E5%AA%92
 民生電子報：https://lifenews.com.tw/page/1/?s=%E5%95%86%E5%82%B3%E5%AA%92
 警政時報：https://www.tcpttw.com/?s=%E5%95%86%E5%82%B3%E5%AA%92
 墨新聞：https://more-news.tw/author/sunmedia/
-商傳媒：https://sunmedia.tw/`;
+商傳媒RSS：https://sunmedia.tw/rss/sunmedia`;
 
 const defaultManualSitesContent = `AMM新聞：https://ammtw.com/?s=%E5%95%86%E5%82%B3%E5%AA%92
 台北郵報：https://taipeipost.org/?s=%E5%95%86%E5%82%B3%E5%AA%92#google_vignette`;
