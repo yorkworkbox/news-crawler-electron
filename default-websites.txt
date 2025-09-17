@@ -15,3 +15,5 @@ YES新聞：https://www.yesmedia.com.tw/?s=%%KEYWORD%%
 警政時報：https://www.tcpttw.com/?s=%%KEYWORD%%
 墨新聞：https://more-news.tw/?s=%%KEYWORD%%
 商傳媒RSS：https://sunmedia.tw/rss/sunmedia
+福爾摩沙：https://formosalive.com/?s=%%KEYWORD%%
+民聲新聞：https://91postnews.com/?s=%%KEYWORD%%
